@@ -37,7 +37,7 @@ use {
 
 ## Usage
 
-```json
+```jsonc
 // ./tasks.json
 {
   "version": "2.0.0",
