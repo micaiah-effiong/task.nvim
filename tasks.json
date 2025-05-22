@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "echo",
+      "type": "shell",
+      "command": "echo '[[ECHOING]]'"
+    },
+    {
+      "label": "GLog",
+      "type": "shell",
+      "command": "git log",
+      "args": [
+        "--oneline",
+        "--graph"
+      ]
+    }
+  ]
+}
