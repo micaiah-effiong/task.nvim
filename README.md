@@ -43,18 +43,22 @@ use {
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Run tests",
+      "label": "echo",
       "type": "shell",
-      "command": "npm run test"
+      "command": "echo '[[ECHOING]]'"
     },
     {
-      "label": "Tsc watch",
+      "label": "GLog",
       "type": "shell",
-      "command": "npx tsc",
-      "args": ["--watch"]
+      "command": "git log",
+      "args": [
+        "--oneline",
+        "--graph"
+      ]
     }
   ]
 }
+
 ```
 
 It also supports npm projects that use `package.json`
