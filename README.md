@@ -8,10 +8,7 @@ Task is a Neovim plugin to easily run any script defined in your file.
 
 ```lua
 {
-  'micah-effiong/task.nvim',
-  config = function()
-    require('task')
-  end
+  'micah-effiong/task.nvim'
 }
 ```
 
@@ -24,7 +21,6 @@ use {
     return vim.fn.filereadable(vim.fn.getcwd() .. '/tasks.json') == 1
   end,
   config = function()
-    require('task')
     -- Optional: Add your key mapping here
     vim.api.nvim_set_keymap('n',
       '<leader>tk',
@@ -72,7 +68,20 @@ If we assume your `package.json` contains the following `scripts` object:
   }
 ```
 
+
 You can run the `start` script by typing `:Task start`. You can also type
 `:Task <Tab>` to auto-complete all available scripts.
 
-Running `:Task` will popup all available tasks
+Running `:Task` will pop up and display all available tasks
+
+
+### Troubleshoot
+If you are having trouble getting it to run, try this
+```diff
+{
+  'micah-effiong/task.nvim',
++  config = function()
++    require('task')
++  end
+}
+```
