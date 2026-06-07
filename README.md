@@ -16,7 +16,7 @@ Task is a Neovim plugin to easily run any script defined in your file.
 
 ```lua
 use {
-  'maxolasersquad/task.nvim',
+  'micah-effiong/task.nvim',
   cond = function()
     return vim.fn.filereadable(vim.fn.getcwd() .. '/tasks.json') == 1
   end,
