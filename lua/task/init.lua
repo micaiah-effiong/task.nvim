@@ -1,10 +1,12 @@
-local npm = require "task.npm"
+local npm   = require "task.npm"
 local popup = require "task.popup"
-require "table.clear"
+local tfs   = require "task.fs"
+
+local M     = {}
 
 ---Commands table
 ---@type table<string, Command>
-local C = {}
+local C     = {}
 
 -- local json_content = [[{
 --   "version": "2.0.0",
@@ -26,42 +28,18 @@ local C = {}
 --   ]
 -- }]]
 
--- ---@return TaskJSON
--- local function read_task_json()
---   return vim.fn.json_decode(json_content)
--- end
-
-
----@return TaskJSON | nil
-local function read_task_json()
-  local file = io.open("tasks.json", "r")
-  if not file then
-    return {}
-    -- allow for check in another folder
-    -- TODO: should use find to look for tasks.json file
-  end
-
-
-  local content = file:read("*a")
-  file:close()
-
-  local tasks_json = vim.fn.json_decode(content)
-
-  if not tasks_json.tasks and not tasks_json.version then
-    return nil
-  end
-
-  return tasks_json
-end
-
 ---@type get_commands
 local function get_commands()
-  local content_json = read_task_json();
+  local key = tfs.git_root()
+  if key == nil then
+    return {}
+  end
+
+  local content_json = tfs.task_read_data(key);
 
   if not content_json then
     return {}
   end
-
 
   local _tasks = content_json.tasks ---@type TaskItem[]|TaskItem
   local commands = {} ---@type table<string, Command>
@@ -87,7 +65,7 @@ local function get_commands()
 end
 
 local function load_commands()
-  table.clear(C)
+  C = {}
   C = vim.tbl_deep_extend('error', C, get_commands())
 end
 
@@ -142,4 +120,40 @@ vim.api.nvim_create_user_command("Task", function(opts)
   end
 end, { nargs = "*", complete = complete_command })
 
-load_commands()
+vim.api.nvim_create_user_command("TaskCreate", function(_)
+  local dir = tfs.git_root()
+
+  if dir == nil then
+    print('Not a git repository')
+    return
+  end
+
+  local filepath = tfs.task_datafile(dir)
+  if vim.uv.fs_stat(filepath) == nil then
+    tfs.task_create_data(dir)
+  end
+
+  -- edit file
+  vim.cmd.edit(filepath)
+end, {})
+
+vim.api.nvim_create_user_command("TaskEdit", function(_)
+  local dir = tfs.git_root()
+
+  if dir == nil then
+    print('Not a git repository')
+    return
+  end
+
+  local filepath = tfs.task_datafile(dir)
+  if vim.uv.fs_stat(filepath) ~= nil then
+    vim.cmd.edit(filepath)
+  else
+    print('No existing task file.')
+  end
+end, {})
+
+M.setup = function()
+end
+
+return M
