@@ -1,12 +1,16 @@
-local npm   = require "task.npm"
-local popup = require "task.popup"
-local tfs   = require "task.fs"
+local npm    = require "task.npm"
+local popup  = require "task.popup"
+local tfs    = require "task.fs"
 
-local M     = {}
+local M      = {}
 
----Commands table
----@type table<string, Command>
-local C     = {}
+---@type Config
+local config = {
+  position = 'belowright'
+}
+
+---@type integer|nil
+local edit_buffer;
 
 -- local json_content = [[{
 --   "version": "2.0.0",
@@ -59,22 +63,13 @@ local function get_commands()
     end
   end
 
-  commands = vim.tbl_deep_extend('error', commands, npm.get_commands())
-
-  return commands
-end
-
-local function load_commands()
-  C = {}
-  C = vim.tbl_deep_extend('error', C, get_commands())
+  return vim.tbl_deep_extend('error', commands, npm.get_commands())
 end
 
 local function complete_command(lead, _, _)
-  load_commands() --- update command table
-  local commands = C
   local matches = {} ---@type string[]
 
-  for _, cmd in pairs(commands) do
+  for _, cmd in pairs(get_commands()) do
     if cmd.name:find(lead, 1, true) == 1 then
       table.insert(matches, cmd.name)
     end
@@ -84,8 +79,9 @@ local function complete_command(lead, _, _)
 end
 
 ---@param command_name string
-local function run_task_command(command_name)
-  local task_cmd = C[command_name]
+---@param commands Command
+local function run_task_command(command_name, commands)
+  local task_cmd = commands[command_name]
 
   if task_cmd == nil then
     print "No command found"
@@ -95,65 +91,98 @@ local function run_task_command(command_name)
   local args = task_cmd.args ~= nil and table.concat(task_cmd.args, " ") or ""
   local command = task_cmd.cmd .. " " .. args
 
-  -- vim.cmd.wincmd("J")
   -- vim.api.nvim_win_set_height(0, 5)
-  -- local job_id = vim.bo.channel
-
-  vim.cmd("bel terminal " .. command)
+  vim.cmd(config.position .. " terminal " .. command)
+  local id = vim.api.nvim_get_current_buf()
+  vim.api.nvim_buf_set_name(id, task_cmd.name)
 end
 
-vim.api.nvim_create_user_command("Task", function(opts)
-  if vim.fn.len(opts.args) == 0 then
-    local keys = {}
-    load_commands() --- update command table
+---@param filename string
+local function edit_task_file(filename)
+  if edit_buffer ~= nil then
+    local win = vim.fn.bufwinid(edit_buffer)
 
-    for key, _ in pairs(C) do
-      table.insert(keys, key)
+    if win ~= -1 then
+      vim.api.nvim_set_current_win(win)
+    else
+      vim.cmd.buffer(edit_buffer)
     end
 
-    popup.open_menu(keys, function(selection)
-      run_task_command(selection)
-    end)
-    return
-  else
-    run_task_command(opts.args)
-  end
-end, { nargs = "*", complete = complete_command })
-
-vim.api.nvim_create_user_command("TaskCreate", function(_)
-  local dir = tfs.git_root()
-
-  if dir == nil then
-    print('Not a git repository')
     return
   end
 
-  local filepath = tfs.task_datafile(dir)
-  if vim.uv.fs_stat(filepath) == nil then
-    tfs.task_create_data(dir)
-  end
+  vim.cmd.vsplit(filename)
+  vim.bo.filetype = 'json'
+  edit_buffer = vim.api.nvim_get_current_buf()
 
-  -- edit file
-  vim.cmd.edit(filepath)
-end, {})
+  vim.api.nvim_create_autocmd('WinClosed', {
+    buffer = edit_buffer,
+    once = true,
+    callback = function()
+      vim.schedule(function()
+        if vim.api.nvim_buf_is_valid(edit_buffer) then
+          vim.api.nvim_buf_delete(edit_buffer, { force = false })
+          edit_buffer = nil
+        end
+      end)
+    end
+  })
+end
 
-vim.api.nvim_create_user_command("TaskEdit", function(_)
-  local dir = tfs.git_root()
+---@param opt Config
+M.setup = function(opt)
+  opt = opt or {}
+  config = vim.tbl_deep_extend('force', config, opt)
 
-  if dir == nil then
-    print('Not a git repository')
-    return
-  end
+  vim.api.nvim_create_user_command("Task", function(opts)
+    local commands = get_commands()
+    if vim.fn.len(opts.args) == 0 then
+      local keys = {}
 
-  local filepath = tfs.task_datafile(dir)
-  if vim.uv.fs_stat(filepath) ~= nil then
-    vim.cmd.edit(filepath)
-  else
-    print('No existing task file.')
-  end
-end, {})
+      for key, _ in pairs(commands) do
+        table.insert(keys, key)
+      end
 
-M.setup = function()
+      popup.open_menu(keys, function(selection)
+        run_task_command(selection, commands)
+      end)
+      return
+    else
+      run_task_command(opts.args, commands)
+    end
+  end, { nargs = "*", complete = complete_command })
+
+  vim.api.nvim_create_user_command("TaskCreate", function(_)
+    local dir = tfs.git_root()
+
+    if dir == nil then
+      print('Not a git repository')
+      return
+    end
+
+    local filepath = tfs.task_datafile(dir)
+    if vim.uv.fs_stat(filepath) == nil then
+      tfs.task_create_data(dir)
+    end
+
+    edit_task_file(filepath)
+  end, {})
+
+  vim.api.nvim_create_user_command("TaskEdit", function(_)
+    local dir = tfs.git_root()
+
+    if dir == nil then
+      print('Not a git repository')
+      return
+    end
+
+    local filepath = tfs.task_datafile(dir)
+    if vim.uv.fs_stat(filepath) ~= nil then
+      edit_task_file(filepath)
+    else
+      print('No existing task file.')
+    end
+  end, {})
 end
 
 return M

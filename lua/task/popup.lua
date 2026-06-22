@@ -12,7 +12,7 @@ M.open_menu = function(opt, cb)
     return
   end
 
-  vim.ui.select(opts, {}, function(selection, number)
+  vim.ui.select(opts, {}, function(selection, _)
     if selection ~= nil then
       cb(selection)
     end

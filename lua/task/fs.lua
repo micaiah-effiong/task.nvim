@@ -38,7 +38,7 @@ end
 M.task_datafile = function(key)
   local dir = vim.fn.stdpath('data') .. '/task'
   local filename = vim.fn.sha256(key)
-  local data_file = dir .. '/' .. filename .. '.json'
+  local data_file = dir .. '/' .. filename .. '.task'
   return data_file
 end
 

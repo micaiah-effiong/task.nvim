@@ -17,3 +17,6 @@
 
 
 ---@alias get_commands fun(): table<string, Command>
+
+---@class Config
+---@field position 'aboveleft'|'belowright'|'botright'|'horizontal'|'leftabove'|'rightbelow'|'topleft'|'vertical'|
