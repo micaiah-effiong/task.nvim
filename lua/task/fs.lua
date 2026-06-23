@@ -1,6 +1,14 @@
+---@type TaskJSON
 local default_task = {
   version = "0.0.1",
-  tasks = {}
+  tasks = {
+    {
+      label = "Example",
+      type = "shell",
+      command = "echo 'hello world'",
+      args = {},
+    }
+  }
 }
 
 local M = {}
@@ -68,7 +76,6 @@ M.task_write_data = function(key, obj)
   file:write(data)
   file:close()
 end
-
 
 ---@return TaskJSON | nil
 M.task_read_data = function(key)

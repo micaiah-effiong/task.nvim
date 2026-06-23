@@ -19,4 +19,5 @@
 ---@alias get_commands fun(): table<string, Command>
 
 ---@class Config
----@field position 'aboveleft'|'belowright'|'botright'|'horizontal'|'leftabove'|'rightbelow'|'topleft'|'vertical'|
+---location of task window when opened
+---@field position 'aboveleft'|'belowright'|'botright'|'horizontal'|'leftabove'|'rightbelow'|'tab'|'topleft'|'vertical'|
