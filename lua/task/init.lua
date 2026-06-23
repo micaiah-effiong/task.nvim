@@ -93,8 +93,6 @@ local function run_task_command(command_name, commands)
 
   -- vim.api.nvim_win_set_height(0, 5)
   vim.cmd(config.position .. " terminal " .. command)
-  local id = vim.api.nvim_get_current_buf()
-  vim.api.nvim_buf_set_name(id, task_cmd.name)
 end
 
 ---@param filename string
