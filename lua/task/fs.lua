@@ -44,7 +44,7 @@ end
 ---@param key string
 ---@return string
 M.task_datafile = function(key)
-  local dir = vim.fn.stdpath('data') .. '/task'
+  local dir = task_datadir()
   local filename = vim.fn.sha256(key)
   local data_file = dir .. '/' .. filename .. '.task'
   return data_file
