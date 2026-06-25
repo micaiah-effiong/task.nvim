@@ -24,12 +24,7 @@ vim.pack.add('https://github.com/micah-effiong/task.nvim')
 use {
   'micah-effiong/task.nvim',
   config = function()
-    -- Optional: Add your key mapping here
-    vim.api.nvim_set_keymap('n',
-      '<leader>tk',
-      ':Task<CR>',
-      { noremap = true, silent = false }
-    )
+    require('task').setup({keymap = '<leader>tk'})
   end
 }
 ```

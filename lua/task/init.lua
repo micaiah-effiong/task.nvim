@@ -132,6 +132,13 @@ M.setup = function(opt)
   opt = opt or {}
   config = vim.tbl_deep_extend('force', config, opt)
 
+  if config.keymap ~= nil then
+    vim.keymap.set('n', config.keymap, function()
+        vim.api.nvim_cmd({ cmd = "Task" }, {})
+      end,
+      { desc = "List available tasks" })
+  end
+
   vim.api.nvim_create_user_command("Task", function(opts)
     local commands = get_commands()
     if vim.fn.len(opts.args) == 0 then
