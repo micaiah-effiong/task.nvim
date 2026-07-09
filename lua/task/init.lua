@@ -33,7 +33,7 @@ local edit_buffer;
 -- }]]
 
 ---@type get_commands
-local function get_commands()
+local function get_task_commands()
   local key = tfs.git_root()
   if key == nil then
     return {}
@@ -63,13 +63,17 @@ local function get_commands()
     end
   end
 
-  return vim.tbl_deep_extend('error', commands, npm.get_commands())
+  return commands
+end
+
+local function get_all_commands()
+  return vim.tbl_deep_extend('error', get_task_commands(), npm.get_commands())
 end
 
 local function complete_command(lead, _, _)
   local matches = {} ---@type string[]
 
-  for _, cmd in pairs(get_commands()) do
+  for _, cmd in pairs(get_all_commands()) do
     if cmd.name:find(lead, 1, true) == 1 then
       table.insert(matches, cmd.name)
     end
@@ -140,7 +144,7 @@ M.setup = function(opt)
   end
 
   vim.api.nvim_create_user_command("Task", function(opts)
-    local commands = get_commands()
+    local commands = get_all_commands()
     if vim.fn.len(opts.args) == 0 then
       local keys = {}
 
