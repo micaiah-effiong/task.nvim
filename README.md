@@ -12,49 +12,44 @@ Task is a Neovim plugin to easily run any script defined in your file.
 }
 ```
 
+### Using Vim pack
+
+```lua
+vim.pack.add('https://github.com/micah-effiong/task.nvim')
+```
+
 ### Using [packer.nvim](https://github.com/wbthomason/packer.nvim)
 
 ```lua
 use {
   'micah-effiong/task.nvim',
-  cond = function()
-    return vim.fn.filereadable(vim.fn.getcwd() .. '/tasks.json') == 1
-  end,
   config = function()
-    -- Optional: Add your key mapping here
-    vim.api.nvim_set_keymap('n',
-      '<leader>tk',
-      ':Task<CR>',
-      { noremap = true, silent = false }
-    )
+    require('task').setup({keymap = '<leader>tk'})
   end
 }
 ```
 
 ## Usage
 
+Here is an example of the task data
+
 ```jsonc
-// ./tasks.json
 {
   "version": "2.0.0",
   "tasks": [
     {
       "label": "echo",
       "type": "shell",
-      "command": "echo '[[ECHOING]]'"
+      "command": "echo '[[ECHOING]]'",
     },
     {
       "label": "GLog",
       "type": "shell",
       "command": "git log",
-      "args": [
-        "--oneline",
-        "--graph"
-      ]
-    }
-  ]
+      "args": ["--oneline", "--graph"],
+    },
+  ],
 }
-
 ```
 
 It also supports npm projects that use `package.json`
@@ -68,15 +63,20 @@ If we assume your `package.json` contains the following `scripts` object:
   }
 ```
 
-
 You can run the `start` script by typing `:Task start`. You can also type
 `:Task <Tab>` to auto-complete all available scripts.
 
 Running `:Task` will pop up and display all available tasks
+Other commands include
 
+- TaskCreate: This create a task file for your project. Expect you to be in a
+  git repository
+- TaskEdit: This opens the task file for editing
 
 ### Troubleshoot
+
 If you are having trouble getting it to run, try this
+
 ```diff
 {
   'micah-effiong/task.nvim',

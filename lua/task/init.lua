@@ -1,10 +1,16 @@
-local npm = require "task.npm"
-local popup = require "task.popup"
-require "table.clear"
+local npm    = require "task.npm"
+local popup  = require "task.popup"
+local tfs    = require "task.fs"
 
----Commands table
----@type table<string, Command>
-local C = {}
+local M      = {}
+
+---@type Config
+local config = {
+  position = 'belowright'
+}
+
+---@type integer|nil
+local edit_buffer;
 
 -- local json_content = [[{
 --   "version": "2.0.0",
@@ -26,42 +32,18 @@ local C = {}
 --   ]
 -- }]]
 
--- ---@return TaskJSON
--- local function read_task_json()
---   return vim.fn.json_decode(json_content)
--- end
-
-
----@return TaskJSON | nil
-local function read_task_json()
-  local file = io.open("tasks.json", "r")
-  if not file then
-    return {}
-    -- allow for check in another folder
-    -- TODO: should use find to look for tasks.json file
-  end
-
-
-  local content = file:read("*a")
-  file:close()
-
-  local tasks_json = vim.fn.json_decode(content)
-
-  if not tasks_json.tasks and not tasks_json.version then
-    return nil
-  end
-
-  return tasks_json
-end
-
 ---@type get_commands
-local function get_commands()
-  local content_json = read_task_json();
+local function get_task_commands()
+  local key = tfs.git_root()
+  if key == nil then
+    return {}
+  end
+
+  local content_json = tfs.task_read_data(key);
 
   if not content_json then
     return {}
   end
-
 
   local _tasks = content_json.tasks ---@type TaskItem[]|TaskItem
   local commands = {} ---@type table<string, Command>
@@ -81,22 +63,17 @@ local function get_commands()
     end
   end
 
-  commands = vim.tbl_deep_extend('error', commands, npm.get_commands())
-
   return commands
 end
 
-local function load_commands()
-  table.clear(C)
-  C = vim.tbl_deep_extend('error', C, get_commands())
+local function get_all_commands()
+  return vim.tbl_deep_extend('error', get_task_commands(), npm.get_commands())
 end
 
 local function complete_command(lead, _, _)
-  load_commands() --- update command table
-  local commands = C
   local matches = {} ---@type string[]
 
-  for _, cmd in pairs(commands) do
+  for _, cmd in pairs(get_all_commands()) do
     if cmd.name:find(lead, 1, true) == 1 then
       table.insert(matches, cmd.name)
     end
@@ -106,8 +83,9 @@ local function complete_command(lead, _, _)
 end
 
 ---@param command_name string
-local function run_task_command(command_name)
-  local task_cmd = C[command_name]
+---@param commands Command
+local function run_task_command(command_name, commands)
+  local task_cmd = commands[command_name]
 
   if task_cmd == nil then
     print "No command found"
@@ -117,29 +95,103 @@ local function run_task_command(command_name)
   local args = task_cmd.args ~= nil and table.concat(task_cmd.args, " ") or ""
   local command = task_cmd.cmd .. " " .. args
 
-  -- vim.cmd.wincmd("J")
   -- vim.api.nvim_win_set_height(0, 5)
-  -- local job_id = vim.bo.channel
-
-  vim.cmd("bel terminal " .. command)
+  vim.cmd(config.position .. " terminal " .. command)
 end
 
-vim.api.nvim_create_user_command("Task", function(opts)
-  if vim.fn.len(opts.args) == 0 then
-    local keys = {}
-    load_commands() --- update command table
+---@param filename string
+local function edit_task_file(filename)
+  if edit_buffer ~= nil then
+    local win = vim.fn.bufwinid(edit_buffer)
 
-    for key, _ in pairs(C) do
-      table.insert(keys, key)
+    if win ~= -1 then
+      vim.api.nvim_set_current_win(win)
+    else
+      vim.cmd.buffer(edit_buffer)
     end
 
-    popup.open_menu(keys, function(selection)
-      run_task_command(selection)
-    end)
     return
-  else
-    run_task_command(opts.args)
   end
-end, { nargs = "*", complete = complete_command })
 
-load_commands()
+  vim.cmd.vsplit(filename)
+  vim.bo.filetype = 'json'
+  edit_buffer = vim.api.nvim_get_current_buf()
+
+  vim.api.nvim_create_autocmd('WinClosed', {
+    buffer = edit_buffer,
+    once = true,
+    callback = function()
+      vim.schedule(function()
+        if vim.api.nvim_buf_is_valid(edit_buffer) then
+          vim.api.nvim_buf_delete(edit_buffer, { force = false })
+          edit_buffer = nil
+        end
+      end)
+    end
+  })
+end
+
+---@param opt Config
+M.setup = function(opt)
+  opt = opt or {}
+  config = vim.tbl_deep_extend('force', config, opt)
+
+  if config.keymap ~= nil then
+    vim.keymap.set('n', config.keymap, function()
+        vim.api.nvim_cmd({ cmd = "Task" }, {})
+      end,
+      { desc = "List available tasks" })
+  end
+
+  vim.api.nvim_create_user_command("Task", function(opts)
+    local commands = get_all_commands()
+    if vim.fn.len(opts.args) == 0 then
+      local keys = {}
+
+      for key, _ in pairs(commands) do
+        table.insert(keys, key)
+      end
+
+      popup.open_menu(keys, function(selection)
+        run_task_command(selection, commands)
+      end)
+      return
+    else
+      run_task_command(opts.args, commands)
+    end
+  end, { nargs = "*", complete = complete_command })
+
+  vim.api.nvim_create_user_command("TaskCreate", function(_)
+    local dir = tfs.git_root()
+
+    if dir == nil then
+      print('Not a git repository')
+      return
+    end
+
+    local filepath = tfs.task_datafile(dir)
+    if vim.uv.fs_stat(filepath) == nil then
+      tfs.task_create_data(dir)
+    end
+
+    edit_task_file(filepath)
+  end, {})
+
+  vim.api.nvim_create_user_command("TaskEdit", function(_)
+    local dir = tfs.git_root()
+
+    if dir == nil then
+      print('Not a git repository')
+      return
+    end
+
+    local filepath = tfs.task_datafile(dir)
+    if vim.uv.fs_stat(filepath) ~= nil then
+      edit_task_file(filepath)
+    else
+      print('No existing task file.')
+    end
+  end, {})
+end
+
+return M
